@@ -1,0 +1,7 @@
+manage.py
+boxshell/wsgi.py
+boxshell/settings.py
+*.pyc
+*~
+boxshell/static/
+

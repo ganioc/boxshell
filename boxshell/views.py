@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-                                                            
 
-
+from django.core.mail import send_mail
 from django.http import HttpResponse, HttpResponseNotFound
 from django.template import Context, Template
 from django.template.loader import get_template
@@ -91,10 +91,12 @@ def signin(request):
     return HttpResponse(html)
 
 def register(request):
+    info = check_language(request)
+
     if request.method == "POST":
         pass
     else:
-        info = check_language(request)
+
         title = "注册" if info['language']=="zh-CN" else 'Register'
         temp = get_template('bs_register.html')
 
@@ -104,6 +106,24 @@ def register(request):
                     'user':request.user}))
         
         return HttpResponse(html)
+
+#show the terms
+def terms(request):
+    content ="<h1>你好！</h1><p>激活密码如下：</p>"
+    send_mail("hello from boxshell",content,'admin@boxshell.com',
+              ['spikey@nvidia.com'])
+
+    info = check_language(request)
+    title = "条款" if info['language']=="zh-CN" else 'Terms'
+
+    temp = get_template('bs_terms.html')
+
+    html = temp.render(Context({
+                'title':title,
+                'language':info['language'],
+                'user':request.user}))
+
+    return HttpResponse(html)
 
 
 

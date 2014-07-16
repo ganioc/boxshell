@@ -1,3 +1,4 @@
+
 from django.conf.urls import patterns, include, url
 
 # Uncomment the next two lines to enable the admin:
@@ -21,6 +22,7 @@ urlpatterns = patterns(
     url(r'^contact/$','boxshell.views.contact'),
     url(r'^signin/$','boxshell.views.signin'),
     url(r'^register/$','boxshell.views.register'),
+    url(r'^terms/$','boxshell.views.terms'),    
     # url(r'^smith/',include('smith.urls')),
     # url(r'^teapot/',include('teapot.urls')),    
 )

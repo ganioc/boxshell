@@ -1,12 +1,47 @@
 # -*- coding: utf-8 -*-                                                            
-
+from django.shortcuts import redirect, render_to_response 
+from django.template import RequestContext
 from django.core.mail import send_mail
 from django.http import HttpResponse, HttpResponseNotFound
 from django.template import Context, Template
 from django.template.loader import get_template
 import datetime,re,json
+from django.conf import settings
 
-################################################################################   
+################################################################################
+def transform_number(n):
+    "input 33~126, output 33~126"
+    temp_n = 126 - n + 33;
+    return temp_n;
+
+def detransform_number(n):
+    "reverse of transform_number"
+    return transform_number(n)
+
+def encrypt_character(c):
+    "To encrypt a character to another one in 0~255"
+    temp_c = ord(c)
+    temp_c = transform_number(temp_c);
+    return chr(temp_c)
+
+def decrypt_character(c):
+    "To decrypt a character to the correct one"
+    temp_c = ord(c)
+    temp_c = detransform_number(temp_c);
+    return chr(temp_c)
+
+def encrypt_string(s):
+    str = ""
+    for i in s:
+        str = str + encrypt_character(i)
+    return str
+
+def decrypt_string(s):
+    str = ""
+    for i in s:
+        str = str + decrypt_character(i)
+    return str
+   
 def is_zh_language(request):
     lang = request.META['HTTP_ACCEPT_LANGUAGE'].split(',')
     return True if (("zh" in lang) or ("zh-cn" in lang) or ("zh-CN" in lang)) else\
@@ -21,6 +56,15 @@ def check_language(request):
     output = {}
     output['language'] = lan
     return output
+
+def return_page(request, template_file,title, dictionary):
+    diction = {'title':title,'language':request.session["lang"]}
+    diction.update(dictionary)
+    return render_to_response(template_file,diction,context_instance=RequestContext(request))
+
+
+# class MyRegistrationForm(UserCreationForm):
+#     pass
 
 #################################################################################  
 #only for language function, only support chinese and english                      
@@ -95,23 +139,24 @@ def register(request):
 
     if request.method == "POST":
         pass
+        
     else:
 
         title = "注册" if info['language']=="zh-CN" else 'Register'
-        temp = get_template('bs_register.html')
-
-        html = temp.render(Context({
-                    'title':title,
-                    'language':info['language'],
-                    'user':request.user}))
-        
-        return HttpResponse(html)
+        return return_page(request,'bs_register.html',title,{
+            'language':info['language'],
+            'user':request.user}
+        )
 
 #show the terms
 def terms(request):
-    content ="<h1>你好！</h1><p>激活密码如下：</p>"
-    send_mail("hello from boxshell",content,'admin@boxshell.com',
-              ['spikey@nvidia.com'])
+    # if settings.SITE_URL == "http://www.boxshell.com/":
+    #     content ="<h1>你好！</h1><p>激活密码如下：</p>"
+    #     send_mail("hello from boxshell",content,'admin@boxshell.com',
+    #               ['spikey@nvidia.com'])
+    # else:
+    #     pass
+        # give you a link to activate the user
 
     info = check_language(request)
     title = "条款" if info['language']=="zh-CN" else 'Terms'

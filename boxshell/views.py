@@ -1,70 +1,54 @@
-# -*- coding: utf-8 -*-                                                            
-from django.shortcuts import redirect, render_to_response 
+# -*- coding: utf-8 -*-                        
+from django.http import HttpResponseRedirect                                    
 from django.template import RequestContext
-from django.core.mail import send_mail
 from django.http import HttpResponse, HttpResponseNotFound
 from django.template import Context, Template
 from django.template.loader import get_template
-import datetime,re,json
+import datetime,re,json, urllib
+
 from django.conf import settings
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
+from django import forms
+from command.views import send_activation_email,encrypt_string,return_page, check_language
 
 ################################################################################
-def transform_number(n):
-    "input 33~126, output 33~126"
-    temp_n = 126 - n + 33;
-    return temp_n;
-
-def detransform_number(n):
-    "reverse of transform_number"
-    return transform_number(n)
-
-def encrypt_character(c):
-    "To encrypt a character to another one in 0~255"
-    temp_c = ord(c)
-    temp_c = transform_number(temp_c);
-    return chr(temp_c)
-
-def decrypt_character(c):
-    "To decrypt a character to the correct one"
-    temp_c = ord(c)
-    temp_c = detransform_number(temp_c);
-    return chr(temp_c)
-
-def encrypt_string(s):
-    str = ""
-    for i in s:
-        str = str + encrypt_character(i)
-    return str
-
-def decrypt_string(s):
-    str = ""
-    for i in s:
-        str = str + decrypt_character(i)
-    return str
    
-def is_zh_language(request):
-    lang = request.META['HTTP_ACCEPT_LANGUAGE'].split(',')
-    return True if (("zh" in lang) or ("zh-cn" in lang) or ("zh-CN" in lang)) else\
- False
-
-#check language                                                                    
-def check_language(request):
-    if "lang" not in request.session:
-	request.session["lang"] = "zh-CN" if is_zh_language(request) else "en-US"
-
-    lan = "zh-CN" if request.session["lang"] == "zh-CN" else "en-US"
-    output = {}
-    output['language'] = lan
-    return output
-
-def return_page(request, template_file,title, dictionary):
-    diction = {'title':title,'language':request.session["lang"]}
-    diction.update(dictionary)
-    return render_to_response(template_file,diction,context_instance=RequestContext(request))
 
 
-# class MyRegistrationForm(UserCreationForm):
-#     pass
+# form for registration
+class MyRegistrationForm(forms.Form):
+    username = forms.CharField(max_length=30)
+    email = forms.EmailField()
+    password1 = forms.CharField(
+        max_length=30,
+        widget=forms.PasswordInput(render_value=False))
+    password2 = forms.CharField(
+        max_length=30,
+        widget=forms.PasswordInput(render_value=False))
+
+    def clean_username(self):
+        try:
+            User.objects.get(username=self.cleaned_data['username'])
+        except User.DoesNotExist:
+            return self.cleaned_data['username']
+        raise forms.ValidationError("This username is already in use.➥Please choose another.")
+
+    def clean(self):
+        if 'password1' in self.cleaned_data and 'password2' in self.cleaned_data:
+            if self.cleaned_data['password1'] != self.cleaned_data['password2']:
+                raise forms.ValidationError("You must type the same➥password each time")
+            return self.cleaned_data
+            
+    def save(self):
+        new_user = User.objects.create_user(
+            username = self.cleaned_data['username'],
+            email = self.cleaned_data['email'],
+            password = self.cleaned_data['password1']
+            )
+        new_user.is_active = False
+        new_user.save()
+        return new_user
 
 #################################################################################  
 #only for language function, only support chinese and english                      
@@ -136,22 +120,26 @@ def signin(request):
 
 def register(request):
     info = check_language(request)
+    title = "注册" if info['language']=="zh-CN" else 'Register'
 
     if request.method == "POST":
-        pass
-        
+        form = MyRegistrationForm(data = request.POST)
+        if form.is_valid():
+            new_user = form.save()
+            request.session["inactive_user"] = new_user.username
+            return HttpResponseRedirect("/activate/")
     else:
+        form = MyRegistrationForm()
+    
+    return return_page(request,'bs_register.html',title,{
+        'language':info['language'],
+        'form':form})
 
-        title = "注册" if info['language']=="zh-CN" else 'Register'
-        return return_page(request,'bs_register.html',title,{
-            'language':info['language'],
-            'user':request.user}
-        )
 
 #show the terms
 def terms(request):
     # if settings.SITE_URL == "http://www.boxshell.com/":
-    #     content ="<h1>你好！</h1><p>激活密码如下：</p>"
+    #     content ="<h1>“你好”</h1><p>激活密码如下：</p>"
     #     send_mail("hello from boxshell",content,'admin@boxshell.com',
     #               ['spikey@nvidia.com'])
     # else:
@@ -160,7 +148,7 @@ def terms(request):
 
     info = check_language(request)
     title = "条款" if info['language']=="zh-CN" else 'Terms'
-
+    
     temp = get_template('bs_terms.html')
 
     html = temp.render(Context({
@@ -170,9 +158,32 @@ def terms(request):
 
     return HttpResponse(html)
 
-
-
+#Activate your account after registration
+def activate(request):
+    info = check_language(request)
+    title = "激活账号" if info['language']=="zh-CN" else 'Activate Account'
     
+    link = {"command":"activate_user",
+            'name':request.session["inactive_user"],
+            'date':datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    
+    link_text= settings.SITE_URL + "command/" + "?content=" + urllib.quote(encrypt_string(json.dumps(link)))
+            
+    if settings.SITE_URL == "http://127.0.0.1:8000/":
+        #return HttpResponse("activate account:"+request.session["inactive_user"])
+        return return_page(request,'bs_activate.html',
+                           title,
+                           { 'language':info['language'],
+                             'username':request.session["inactive_user"],
+                             'link':link_text})
+    else:
+        return send_activation_email(
+            request, 
+            { 'language':info['language'],
+              'username':request.session["inactive_user"],
+              'link':link_text})
+        # send a mail containing the activation link inside
+        
 
 
-
+        

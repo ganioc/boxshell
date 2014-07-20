@@ -22,7 +22,9 @@ urlpatterns = patterns(
     url(r'^contact/$','boxshell.views.contact'),
     url(r'^signin/$','boxshell.views.signin'),
     url(r'^register/$','boxshell.views.register'),
+    url(r'^activate/$','boxshell.views.activate'),
     url(r'^terms/$','boxshell.views.terms'),    
-    # url(r'^smith/',include('smith.urls')),
+    url(r'^command/', include('command.urls')),
+   # url(r'^smith/',include('smith.urls')),
     # url(r'^teapot/',include('teapot.urls')),    
 )

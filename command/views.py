@@ -5,7 +5,8 @@ from django.core.mail import send_mail
 import datetime,re,json
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseNotFound
-from django.template import RequestContext
+from django.template import RequestContext, Context, Template
+import smtplib
 
 def transform_number(n):
     "input 32~126, output 32~126"
@@ -62,6 +63,45 @@ def return_page(request, template_file,title, dictionary):
     diction.update(dictionary)
     return render_to_response(template_file,diction,context_instance=RequestContext(request))
 
+def error_page(request,username, e_types,e_content,e_additional):
+    info = check_language(request)
+    title = "错误" if info['language']=="zh-CN" else 'Error'
+    return return_page(request,
+                       "bs_error.html",
+                       title,
+                       {'language':info['language'],
+                        'username':username,
+                        'error_type': e_types,
+                        'error_content':e_content,
+                        'error_additional': e_additional})
+
+def ok_page(request,username, e_types,e_content,e_additional):
+    info = check_language(request)
+    title = "成功" if info['language']=="zh-CN" else 'OK'
+    return return_page(request,
+                       "bs_ok.html",
+                       title,
+                       {'language':info['language'],
+                        'username':username,
+                        'ok_content':e_content,
+                        'ok_additional': e_additional})
+
+def nonexist_user_page(request, username):
+    info = check_language(request)
+    title = "用户名不存在" if info['language']=="zh-CN" else 'Username non exist'
+    e_types = "用户名不存在" if info['language']=='zh-CN' else 'Username non-exist'
+    e_content = "请重新注册。点击：" if info['language']=='zh-CN' else 'Please register again. '
+    c_content += "<a href="/register/">Click</a>"
+    e_additional = ""
+    return return_page(request,
+                       "bs_error.html",
+                       title,
+                       {'language':info['language'],
+                        'username':username,
+                        'error_type': e_types,
+                        'error_content':e_content,
+                        'error_additional': e_additional})
+
 # Create your views here.
 
     # link = {"command":"activate_user",
@@ -74,6 +114,7 @@ def return_page(request, template_file,title, dictionary):
 #     b = Blog.objects.get(id=1)
 # except ObjectDoesNotExist:
 #     print("Either the entry or blog doesn't exist.")
+
 
 def activate_user(request, param):
     info = check_language(request)
@@ -91,27 +132,14 @@ def activate_user(request, param):
                             'username':user.username})
 
     except ObjectDoesNotExist:
-        title = "激活失败" if info['language']=="zh-CN" else 'Activation failed'
-        e_types = "用户名不存在" if info['language']=='zh-CN' else 'Username non-exist'
-        e_content = "请重新注册。点击：" if info['language']=='zh-CN' else 'Please register again. '
-        c_content += "<a href="/register/">Click</a>"
-        e_additional = ""
-        return return_page(request,
-                           "bs_error.html",
-                           title,
-                           {'language':info['language'],
-                            'username':param["name"],
-                            'error_type': e_types,
-                            'error_content':e_content,
-                            'error_additional': e_additional})
-        # return a page saying username does not exist, you need register again
-        
+        return nonexist_user_page(request,param["username"])
 
+# this is a function bundler
 commands_handler = {
     'activate_user':activate_user
-    
 }
 
+#the entry point for /command/ url
 def main(request):
     content = request.GET.get('content', '')
     if content != '':
@@ -121,7 +149,22 @@ def main(request):
         #return HttpResponse(decrypt_string(content) + "-->")
     else:
         return HttpResponse("no content fetched at all")
-# request, 
+
+
+def get_activation_message(param):
+    message = ""
+    if param["language"] == "zh-CN":
+        message = "你好 {{ name }}:\n
+        请点击以下链接来激活在Boxshell网的帐号。\n\n{{ link }}\n\n请勿回复本邮件。谢谢！\n\nBoxshell"
+    else:#english
+        message = "Hello Mr(Ms) {{ name }}:\n
+        Please click below link to activate your account on Boxshell.\n\n {{ link }}\n\nPlease don't re this mail. Thanks!\n\nBoxshell"
+    t = Template(message)
+    c = Context({'name':param["username"],
+                 'link':param["link"]})
+    return t.render(c)
+
+# info needed for send_mail 
 # { 'language':info['language'],
 #   'username':request.session["inactive_user"],
 #   'link':link_text})
@@ -132,30 +175,28 @@ def main(request):
 def send_activation_email(request,param):
     info = check_language(request)
     title = "Boxshell账号激活" if info['language']=="zh-CN" else 'Activation Account to Boxshell'
-    content = ""
+    content = get_activation_message(param)
     sender = "admin@boxshell.com"
 
     try:
         user=User.objects.get(username=param["username"])
     except ObjectDoesNotExist:
         # return to error page
-        title = "发送邮件失败" if info['language']=="zh-CN" else 'Send Activation mail failed'
-        e_types = "用户名不存在" if info['language']=='zh-CN' else 'Username non-exist'
-        e_content = "请重新注册。点击：" if info['language']=='zh-CN' else 'Please register again. '
-        c_content += "<a href="/register/">Click</a>"
-        e_additional = ""
-        return return_page(request,
-                           "bs_error.html",
-                           title,
-                           {'language':info['language'],
-                            'username':param["username"],
-                            'error_type': e_types,
-                            'error_content':e_content,
-                            'error_additional': e_additional})
+        return nonexist_user_page(request,param["username"])
+
     receiver = user.email
-    send_mail(
-        title,
-        content,
-        sender,
-        receiver
-    )
+
+    try:
+        send_mail(
+            title,
+            content,
+            sender,
+            receiver
+        )
+    except  smtplib.SMTPException:
+        if info['language']=="zh-CN":
+            return error_page(request,param["username"],"邮件发送失败","由于故障问题 , 帐号激活邮件发送失败！", "")
+        else:
+            return error_page(request,param["username"],"Send mail failed","Something wrong , activation mail is not delivered","")
+
+    return ok_page(request,param["username"],"邮件发送成功","请及时查看您的注册邮箱,尽快完成注册。")

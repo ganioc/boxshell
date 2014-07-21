@@ -75,7 +75,7 @@ def error_page(request,username, e_types,e_content,e_additional):
                         'error_content':e_content,
                         'error_additional': e_additional})
 
-def ok_page(request,username, e_types,e_content,e_additional):
+def ok_page(request,username,e_content,e_additional):
     info = check_language(request)
     title = "成功" if info['language']=="zh-CN" else 'OK'
     return return_page(request,
@@ -125,6 +125,9 @@ def activate_user(request, param):
         user.save()
         title = "激活成功" if info['language']=="zh-CN" else 'Activation succeed'
         # jump to a page, saying you have activated your account successfully
+        #clear account using the same email address
+        clear_exist_email(user.email)
+
         return return_page(request,
                            "bs_activate_ok.html",
                            title,
@@ -148,17 +151,18 @@ def main(request):
         return commands_handler[link["command"]](request, link)
         #return HttpResponse(decrypt_string(content) + "-->")
     else:
-        return HttpResponse("no content fetched at all")
+        if info['language']=="zh-CN":
+            return error_page(request,"",u"无效链接",u"由于不明问题 , 该帐号激活链接是无效的！", "")
+        else:
+            return error_page(request,"",u"Invalid link",u"Something wrong , this link for activation account invalid.","")
 
 
 def get_activation_message(param):
     message = ""
     if param["language"] == "zh-CN":
-        message = "你好 {{ name }}:\n
-        请点击以下链接来激活在Boxshell网的帐号。\n\n{{ link }}\n\n请勿回复本邮件。谢谢！\n\nBoxshell"
+        message = u"你好 {{ name }}:\n请点击以下链接来激活在Boxshell网的帐号。\n\n{{ link }}\n\n请勿回复本邮件。谢谢！\n\nBoxshell"
     else:#english
-        message = "Hello Mr(Ms) {{ name }}:\n
-        Please click below link to activate your account on Boxshell.\n\n {{ link }}\n\nPlease don't re this mail. Thanks!\n\nBoxshell"
+        message = u"Hello Mr(Ms) {{ name }}:\nPlease click below link to activate your account on Boxshell.\n\n {{ link }}\n\nPlease don't re this mail. Thanks!\n\nBoxshell"
     t = Template(message)
     c = Context({'name':param["username"],
                  'link':param["link"]})
@@ -174,9 +178,10 @@ def get_activation_message(param):
 
 def send_activation_email(request,param):
     info = check_language(request)
-    title = "Boxshell账号激活" if info['language']=="zh-CN" else 'Activation Account to Boxshell'
+    title = u"Boxshell账号激活" if info['language']=="zh-CN" else u'Activation Account to Boxshell'
     content = get_activation_message(param)
     sender = "admin@boxshell.com"
+    user = ""
 
     try:
         user=User.objects.get(username=param["username"])
@@ -191,12 +196,28 @@ def send_activation_email(request,param):
             title,
             content,
             sender,
-            receiver
+            [receiver]
         )
     except  smtplib.SMTPException:
         if info['language']=="zh-CN":
-            return error_page(request,param["username"],"邮件发送失败","由于故障问题 , 帐号激活邮件发送失败！", "")
+            return error_page(request,param["username"],u"邮件发送失败",u"由于故障问题 , 帐号激活邮件发送失败！", "")
         else:
-            return error_page(request,param["username"],"Send mail failed","Something wrong , activation mail is not delivered","")
+            return error_page(request,param["username"],u"Send mail failed",u"Something wrong , activation mail is not delivered","")
 
-    return ok_page(request,param["username"],"邮件发送成功","请及时查看您的注册邮箱,尽快完成注册。")
+    if info['language']=="zh-CN":
+        return ok_page(request,param["username"],u"邮件发送成功",u"请及时查看您的注册邮箱%s,尽快完成注册。" % user.email)
+    else:
+        return ok_page(request,param["username"],u"Email sending succeed.",u"Please check your mailbox %s, and finish the activation process." % user.email)
+
+
+def b_exist_email(mail):
+    user = User.objects.filter(email=mail,is_active=True)
+    if user.exists():
+        return True
+    else:
+        return False
+
+def clear_exist_email(mail):
+    users = User.objects.filter(email=mail,is_active=False)
+    for i in users:
+        i.delete()

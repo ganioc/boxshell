@@ -85,10 +85,12 @@ def home(request):
     info = check_language(request)
     title = "主页" if info['language']=="zh-CN" else 'Home'
 
+    myuser = request.user if request.user.is_authenticated() else "anonymous"
+
     return return_page(request,'bs_main.html',
                        title,
                        {'language':info['language'],
-                        'user':request.user})
+                        'user':myuser})
 
 
 def about(request):
@@ -96,11 +98,12 @@ def about(request):
     title = "关于" if info['language']=="zh-CN" else 'About'
 
     temp = get_template('bs_about.html')
+    myuser = request.user if request.user.is_authenticated() else "anonymous"
 
     html = temp.render(Context({
                 'title':title,
                 'language':info['language'],
-                'user':request.user}))
+                'user':myuser}))
 
     return HttpResponse(html)
 
@@ -109,11 +112,12 @@ def contact(request):
     title = "联系" if info['language']=="zh-CN" else 'Contact'
 
     temp = get_template('bs_contact.html')
+    myuser = request.user if request.user.is_authenticated() else 'anonymous'
 
     html = temp.render(Context({
                 'title':title,
                 'language':info['language'],
-                'user':request.user}))
+                'user':myuser}))
 
     return HttpResponse(html)
 
@@ -141,7 +145,8 @@ def signin(request):
     return return_page(request,'bs_signin.html',
                        title,
                        {'language':info['language'],
-                        'form':form})
+                        'form':form,
+                        'user':'anonymous'})
 def register(request):
     info = check_language(request)
     title = "注册" if info['language']=="zh-CN" else 'Register'
@@ -158,14 +163,16 @@ def register(request):
                 form = {'email':{'errors':True}}
                 return return_page(request,'bs_register.html',title,{
                         'language':info['language'],
-                        'form':form})
+                        'form':form,
+                        'user':'anonymous'})
             return HttpResponseRedirect("/activate/")
     else:
         form = MyRegistrationForm()
     
     return return_page(request,'bs_register.html',title,{
         'language':info['language'],
-        'form':form})
+        'form':form,
+        'user':'anonymous'})
 
 
 #show the terms
@@ -182,11 +189,11 @@ def terms(request):
     title = "条款" if info['language']=="zh-CN" else 'Terms'
     
     temp = get_template('bs_terms.html')
-
+    myuser = request.user if request.user.is_authenticated() else 'anonymous'
     html = temp.render(Context({
                 'title':title,
                 'language':info['language'],
-                'user':request.user}))
+                'user':myuser}))
 
     return HttpResponse(html)
 
@@ -214,18 +221,27 @@ def activate(request):
               'username':request.session["inactive_user"],
               'link':link_text})
         # send a mail containing the activation link inside
-        
 
+#this is a decorator function to make sure the user has logged in
+def need_login(function):
+    def wrapper(request, *args, **kw):
+        if request.user.is_authenticated():
+            return function(request, *args, **kw)
+        else:
+            return HttpResponseRedirect('/')
+    return wrapper
 
-        
+@need_login        
 def account(request):
     info = check_language(request)
     title = "账户" if info['language']=="zh-CN" else 'Account'
 
+    myuser = request.user if request.user.is_authenticated() else 'anonymous'
+
     return return_page(request,'bs_account.html',
                        title,
                        {'language':info['language'],
-                        'user':request.user})
+                        'user':myuser})
 
 def signout(request):
     auth.logout(request)

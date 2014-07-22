@@ -147,9 +147,11 @@ def signin(request):
                        {'language':info['language'],
                         'form':form,
                         'user':'anonymous'})
+
 def register(request):
     info = check_language(request)
     title = "注册" if info['language']=="zh-CN" else 'Register'
+
 
     if request.method == "POST":
         form = MyRegistrationForm(data = request.POST)
@@ -168,6 +170,10 @@ def register(request):
             return HttpResponseRedirect("/activate/")
     else:
         form = MyRegistrationForm()
+
+    # log off exist user
+    if request.user.is_authenticated():
+        auth.logout(request)
     
     return return_page(request,'bs_register.html',title,{
         'language':info['language'],

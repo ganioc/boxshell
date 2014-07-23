@@ -4,4 +4,7 @@ boxshell/settings.py
 *.pyc
 *~
 boxshell/static/
+.DS_Store
+boxshell/.DS_Store
+
 

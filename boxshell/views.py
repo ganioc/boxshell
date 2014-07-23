@@ -134,7 +134,7 @@ def signin(request):
             user = auth.authenticate(username=myuser.username,password=temp_user['password'])
             if user is not None and user.is_active:
                 auth.login(request,user)
-                return HttpResponseRedirect("/")
+                return HttpResponseRedirect("/account/")
             elif user is not None and not  user.is_active:
                 form = {'activation':{'errors':True}}
             else:

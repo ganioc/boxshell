@@ -12,5 +12,6 @@ admin.autodiscover()
 urlpatterns = patterns('',
     # url(r'^admin/', include(admin.site.urls)),
     url(r'^$','command.views.main'),
-
+    url(r'^get/$','command.views.get'),
+    url(r'^set/$','command.views.set'),
 )

@@ -4,9 +4,19 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 import datetime,re,json
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse, HttpResponseNotFound
-from django.template import RequestContext, Context, Template
+from django.http import HttpResponse, HttpResponseNotFound,HttpResponseRedirect
+from django.template import RequestContext, Context, Template,loader
 import smtplib
+
+#this is a decorator function to make sure the user has logged in
+def need_login(function):
+    def wrapper(request, *args, **kw):
+        if request.user.is_authenticated():
+            return function(request, *args, **kw)
+        else:
+            return HttpResponseRedirect('/')
+    return wrapper
+
 
 def transform_number(n):
     "input 32~126, output 32~126"
@@ -221,3 +231,36 @@ def clear_exist_email(mail):
     users = User.objects.filter(email=mail,is_active=False)
     for i in users:
         i.delete()
+###########################################
+def get_rendered_string(request,filename):
+    info = check_language(request)
+    t = loader.get_template(filename)
+    c = Context({'language':info['language'],'files':[] })
+    return t.render(c)
+
+def get_from_name(request,name):
+    if name == "project":
+        return get_rendered_string(request,"template_paragraph_project.html")
+    elif name == "account":
+        return get_rendered_string(request,"template_paragraph_account.html")
+    else:
+        return False
+# this is the entry point of ajax get function
+@need_login
+def get(request):
+    message = {}
+    if request.is_ajax() and request.method == "POST":
+        name = request.POST["name"]
+        return_str = get_from_name(request,name)
+        if return_str:
+            message["content"]= return_str
+            message["success"]= "yes"
+        else:
+            message["success"]= "no"
+    else:
+        message = {"text":"Not Ajax","success":"no"}
+    return HttpResponse(json.dumps(message),content_type="application/json")
+
+@need_login
+def set(request):
+    pass

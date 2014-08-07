@@ -10,10 +10,10 @@ from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django import forms
-from command.views import send_activation_email,encrypt_string,return_page, check_language, b_exist_email
-################################################################################
-   
+from command.views import send_activation_email,encrypt_string,return_page, check_language, b_exist_email, need_login
 #form for signin
+
+
 class MySigninForm(forms.Form):
     email = forms.EmailField()
     password = forms.CharField(
@@ -228,14 +228,6 @@ def activate(request):
               'link':link_text})
         # send a mail containing the activation link inside
 
-#this is a decorator function to make sure the user has logged in
-def need_login(function):
-    def wrapper(request, *args, **kw):
-        if request.user.is_authenticated():
-            return function(request, *args, **kw)
-        else:
-            return HttpResponseRedirect('/')
-    return wrapper
 
 @need_login        
 def account(request):

@@ -7,6 +7,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseNotFound,HttpResponseRedirect
 from django.template import RequestContext, Context, Template,loader
 import smtplib
+from boxshell.settings import USER_FILE_ROOT
+from django.core.files import File
 
 #this is a decorator function to make sure the user has logged in
 def need_login(function):
@@ -231,6 +233,30 @@ def clear_exist_email(mail):
     users = User.objects.filter(email=mail,is_active=False)
     for i in users:
         i.delete()
+
+def file_create_a_hello():
+    with open(USER_FILE_ROOT + 'hello.world', 'w') as f:
+        myfile = File(f)
+        myfile.write('Hello World')
+    
+    f.closed
+
+def file_create_dir(name):
+    pass
+
+def file_create_file(name):
+    pass
+
+def file_read_file(name):
+    pass
+
+def file_write_file(str):
+    pass
+
+def file_copy_file(name,dest_dir):
+    pass
+
+
 ###########################################
 def get_rendered_string(request,filename):
     info = check_language(request)
@@ -242,9 +268,12 @@ def get_from_name(request,name):
     if name == "project":
         return get_rendered_string(request,"template_paragraph_project.html")
     elif name == "account":
+        file_create_a_hello()
         return get_rendered_string(request,"template_paragraph_account.html")
     else:
         return False
+
+
 # this is the entry point of ajax get function
 @need_login
 def get(request):

@@ -14,4 +14,5 @@ urlpatterns = patterns('',
     url(r'^$','command.views.main'),
     url(r'^get/$','command.views.get'),
     url(r'^set/$','command.views.set'),
+    # url(r'^set_account/$','command.views.set_account'),
 )

@@ -10,7 +10,8 @@ from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django import forms
-from command.views import send_activation_email,encrypt_string,return_page, check_language, b_exist_email, need_login
+from command.views import send_activation_email,encrypt_string,return_page, check_language, b_exist_email, need_login, return_user_account
+
 #form for signin
 
 
@@ -235,11 +236,13 @@ def account(request):
     title = "账户" if info['language']=="zh-CN" else 'Account'
 
     myuser = request.user if request.user.is_authenticated() else 'anonymous'
+    user_account = return_user_account(myuser)
 
     return return_page(request,'bs_account.html',
                        title,
                        {'language':info['language'],
-                        'user':myuser})
+                        'user':myuser,
+                        'account':user_account})
 
 def signout(request):
     auth.logout(request)

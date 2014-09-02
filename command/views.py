@@ -6,9 +6,10 @@ import datetime,re,json
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseNotFound,HttpResponseRedirect
 from django.template import RequestContext, Context, Template,loader
-import smtplib
+import smtplib,os
 from boxshell.settings import USER_FILE_ROOT
 from django.core.files import File
+from command.models import Account
 
 #this is a decorator function to make sure the user has logged in
 def need_login(function):
@@ -242,7 +243,7 @@ def file_create_a_hello():
     f.closed
 
 def file_create_dir(name):
-    pass
+    os.mkdir(name)
 
 def file_create_file(name):
     pass
@@ -256,23 +257,81 @@ def file_write_file(str):
 def file_copy_file(name,dest_dir):
     pass
 
+def return_user_account(user1):
+    try:
+        account = Account.objects.get(user=user1)
+    except Account.DoesNotExist:
+        account = None
+    return account
+
+def get_user_account(user1):
+    try:
+        account = Account.objects.get(user=user1)
+    except Account.DoesNotExist:
+        account = Account(
+            home_dir=user1.username,
+            user=user1
+        )
+        account.save()
+        file_create_dir(USER_FILE_ROOT + account.home_dir)
+    return account
+
+def set_user_account(account1, obj):
+    if obj["gender"]:
+        account1.gender = obj["gender"]
+
+    if obj["avatar"]:
+        account1.avatar = obj["avatar"]
+    if obj["location"]:
+        account1.location = obj["location"]
+    if obj["country"]:
+        account1.country = obj["country"]
+    if obj["city"]:
+        account1.city = obj["city"]
+    if obj["website1"]:
+        account1.website1 = obj["website1"]
+    if obj["company"]:
+        account1.company = obj["company"]
+    if obj["occupation"]:
+        account1.occupation = obj["occupation"]
+    if obj["introduction"]:
+        account1.introduction = obj["introduction"]
+
+    
+    account1.save()
 
 ###########################################
-def get_rendered_string(request,filename):
+def get_rendered_string(request,filename,context):
     info = check_language(request)
     t = loader.get_template(filename)
-    c = Context({'language':info['language'],'files':[] })
+    obj = {'language':info['language'],'files':[] }
+    obj.update(context)
+    c = Context(obj)
     return t.render(c)
 
 def get_from_name(request,name):
     if name == "project":
-        return get_rendered_string(request,"template_paragraph_project.html")
+        return get_rendered_string(request,"template_paragraph_project.html", {})
     elif name == "account":
-        file_create_a_hello()
-        return get_rendered_string(request,"template_paragraph_account.html")
+        #file_create_a_hello()
+        # if the user don't have an account create one,
+        # otherwise forward the account to the template render
+        user_account = get_user_account(request.user)
+        return get_rendered_string(request,"template_paragraph_account.html",{'account':user_account})
     else:
         return False
 
+# content is a string, need to change to object
+def set_from_name(request,name,content):
+    if name == "project":
+        return True
+    elif name == "account":
+        user_account = get_user_account(request.user)
+        obj = json.loads(content)
+        set_user_account(user_account, obj)
+        return "Save OK"
+    else:
+        return False
 
 # this is the entry point of ajax get function
 @need_login
@@ -292,4 +351,17 @@ def get(request):
 
 @need_login
 def set(request):
-    pass
+    message = {}
+    if request.is_ajax() and request.method == "POST":
+        name = request.POST["name"]
+        content = request.POST["content"]
+        return_str = set_from_name(request,name,content)
+        if return_str:
+            message["content"]= return_str
+            message["success"]= "yes"
+        else:
+            message["success"]= "no"
+    else:
+        message = {"text":"Not Ajax","success":"no"}
+    return HttpResponse(json.dumps(message),content_type="application/json")
+

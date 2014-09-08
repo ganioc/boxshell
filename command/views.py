@@ -2,14 +2,14 @@
 from django.shortcuts import redirect, render_to_response 
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
-import datetime,re,json
+import datetime,re,json, time
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, HttpResponseNotFound,HttpResponseRedirect
 from django.template import RequestContext, Context, Template,loader
 import smtplib,os
 from boxshell.settings import USER_FILE_ROOT
 from django.core.files import File
-from command.models import Account
+from command.models import Account, Project
 
 #this is a decorator function to make sure the user has logged in
 def need_login(function):
@@ -241,21 +241,55 @@ def file_create_a_hello():
         myfile.write('Hello World')
     
     f.closed
+def file_check_exist(name):
+    return os.path.isfile(name)
 
 def file_create_dir(name):
     os.mkdir(name)
 
-def file_create_file(name):
-    pass
+def file_create_file(name, content):
+    fp = open(name,"w")
+    fp.write(content)
+    fp.close()
+def file_valid(name):
+    if name[0] == '.':
+        return False
+    elif re.search(r".+[.]info" , name):
+        return False
+    return True
 
 def file_read_file(name):
     pass
+def file_list_file(directory):
+    files =  os.listdir(directory)
+    feedback = []
+    os.chdir(directory)
+    for file1 in files:
+        if file_valid(file1):
+            info = os.stat(file1)
+            other_info = file_file_type(directory, file1 + '.info')
+            temp = {}
+            temp["name"] = file1
+            temp["modified_datetime"] = "%s" % time.ctime(info.st_mtime)
+            temp["type"] = other_info["type"]
+            temp["description"] = other_info["description"]
+            temp["size"] = info.st_size
+            feedback.append(temp)
+
+    return feedback
 
 def file_write_file(str):
     pass
 
 def file_copy_file(name,dest_dir):
     pass
+def file_file_type(directory,filename):
+    # judge a file type by is postfix name
+    fp = open(directory + '/' + filename, "r")
+    content = fp.read()
+    fp.close()
+    obj = json.loads(content)
+    return obj
 
 def return_user_account(user1):
     try:
@@ -277,30 +311,12 @@ def get_user_account(user1):
     return account
 
 def set_user_account(account1, obj):
-    if obj["gender"]:
-        account1.gender = obj["gender"]
-
-    if obj["avatar"]:
-        account1.avatar = obj["avatar"]
-    if obj["location"]:
-        account1.location = obj["location"]
-    if obj["country"]:
-        account1.country = obj["country"]
-    if obj["city"]:
-        account1.city = obj["city"]
-    if obj["website1"]:
-        account1.website1 = obj["website1"]
-    if obj["company"]:
-        account1.company = obj["company"]
-    if obj["occupation"]:
-        account1.occupation = obj["occupation"]
-    if obj["introduction"]:
-        account1.introduction = obj["introduction"]
-
+    for key in obj.keys():
+        #if key in dir(Account):
+        account1[key] = obj[key]
     
     account1.save()
 
-###########################################
 def get_rendered_string(request,filename,context):
     info = check_language(request)
     t = loader.get_template(filename)
@@ -309,29 +325,97 @@ def get_rendered_string(request,filename,context):
     c = Context(obj)
     return t.render(c)
 
-def get_from_name(request,name):
+def get_user_projects(request):
+    try:
+        projects = Project.objects.all().filter(user=request.user)
+    except Project.DoesNotExist:
+        projects = []
+    return True,get_rendered_string(request,"template_paragraph_project.html", 
+                                    {'projects':projects})
+
+def get_user_project_file(request,project):
+    # get files from the project
+    directory = USER_FILE_ROOT + request.user.username + "/" + project
+    files = file_list_file(directory)
+    return files
+
+def set_user_project(user1, project_name):
+    # if project already exist, return False
+    try:
+        projet = Project.objects.get(user=user1, name = project_name)
+    except Project.DoesNotExist:
+        project = Project(
+            name = project_name,
+            modified_datetime = datetime.datetime.now(),
+            user = user1,
+            publicity = "private",
+            description = ""
+        )
+        project.save()
+        file_create_dir(USER_FILE_ROOT + user1.username + "/" + project_name)
+        return True, "project create OK"
+
+    return False, "project name already exist:" + project_name
+    
+def set_user_file(user1,content):
+    obj = json.loads(content)
+    directory = USER_FILE_ROOT + user1.username + '/' + obj["project"] + '/'
+    os.chdir(directory)
+
+    name =  obj["name"]
+    # check filename exist?
+    if(file_check_exist(name)):
+        return False,"File name exists"
+    
+    # create file ,and file.info under directory
+    file_content = {}
+    info_content = {}
+    info_content["type"] = obj["type"]
+    info_content["description"] = obj["description"]
+    info_content["datetime_modified"] = ""
+    info_content["datetime_created"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # write information into the file then leave
+    try:
+        file_create_file(name,json.dumps(file_content))
+    except:
+        return False, "create file NOK:" + obj["name"]
+    try:
+        file_create_file(name + ".info", json.dumps(info_content))
+    except:
+        return False,"file create NOK:" + obj["name"] + ".info"
+    return True, "file create OK:" + obj["name"]
+
+###########################################
+
+def get_from_name(request,name,content):
     if name == "project":
-        return get_rendered_string(request,"template_paragraph_project.html", {})
+        #return True, get_rendered_string(request,"template_paragraph_project.html", {})
+        return get_user_projects(request)
     elif name == "account":
         #file_create_a_hello()
         # if the user don't have an account create one,
         # otherwise forward the account to the template render
         user_account = get_user_account(request.user)
-        return get_rendered_string(request,"template_paragraph_account.html",{'account':user_account})
+        return True,get_rendered_string(request,"template_paragraph_account.html",{'account':user_account})
+    elif name == "file":
+        files = get_user_project_file(request, content)
+        return True,get_rendered_string(request,"template_paragraph_file.html",{'project':content, 'files':files})
     else:
-        return False
+        return False,""
 
 # content is a string, need to change to object
 def set_from_name(request,name,content):
-    if name == "project":
-        return True
+    if name == "create_project":
+        return set_user_project(request.user,content)
+    elif name == "create_file":
+        return set_user_file(request.user,content)
     elif name == "account":
         user_account = get_user_account(request.user)
         obj = json.loads(content)
         set_user_account(user_account, obj)
-        return "Save OK"
+        return True,"Save OK"
     else:
-        return False
+        return False, ""
 
 # this is the entry point of ajax get function
 @need_login
@@ -339,8 +423,12 @@ def get(request):
     message = {}
     if request.is_ajax() and request.method == "POST":
         name = request.POST["name"]
-        return_str = get_from_name(request,name)
-        if return_str:
+        if "content" not in request.POST.keys():
+            content = {}
+        else:
+            content = request.POST["content"]
+        status, return_str = get_from_name(request,name,content)
+        if status:
             message["content"]= return_str
             message["success"]= "yes"
         else:
@@ -355,9 +443,10 @@ def set(request):
     if request.is_ajax() and request.method == "POST":
         name = request.POST["name"]
         content = request.POST["content"]
-        return_str = set_from_name(request,name,content)
-        if return_str:
-            message["content"]= return_str
+        status,return_str = set_from_name(request,name,content)
+        message["content"]= return_str
+
+        if status:
             message["success"]= "yes"
         else:
             message["success"]= "no"

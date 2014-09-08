@@ -25,8 +25,9 @@ urlpatterns = patterns(
     url(r'^activate/$','boxshell.views.activate'),
     url(r'^terms/$','boxshell.views.terms'),    
     url(r'^command/', include('command.urls')),
-    url(r'^account/', 'boxshell.views.account'),
-    url(r'^signout/', 'boxshell.views.signout'),
+    url(r'^account/$', 'boxshell.views.account'),
+    url(r'^signout/$', 'boxshell.views.signout'),
+    url(r'^sch/(?P<project>.+)/(?P<filename>.+)/$','boxshell.drawings.sch'),
    # url(r'^smith/',include('smith.urls')),
     # url(r'^teapot/',include('teapot.urls')),    
 )

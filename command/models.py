@@ -20,7 +20,29 @@ class Account(models.Model):
     introduction = models.TextField(blank=True)
     user = models.OneToOneField(User)
 
-    def __str__(self):
+    def __unicode__(self):
         return "%s" % self.user.username
 
+    def __getitem__(self,name):
+        return getattr(self,name)
 
+    def __setitem__(self,name,value):
+        setattr(self,name,value)
+
+
+class Project(models.Model):
+    name = models.CharField(max_length = 100)
+    created_datetime = models.DateTimeField(auto_now = True)
+    modified_datetime = models.DateTimeField(blank = True)
+    description = models.TextField(blank = True)
+    user = models.ForeignKey(User)
+    publicity = models.CharField(max_length = 50)
+
+    def __unicode__(self):
+        return "%s" % self.name
+
+    def __getitem__(self,name):
+        return getattr(self,name)
+
+    def __setitem__(self,name,value):
+        setattr(self,name,value)

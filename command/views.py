@@ -330,8 +330,7 @@ def get_user_projects(request):
         projects = Project.objects.all().filter(user=request.user)
     except Project.DoesNotExist:
         projects = []
-    return True,get_rendered_string(request,"template_paragraph_project.html", 
-                                    {'projects':projects})
+    return True,get_rendered_string(request,"template_paragraph_project.html",{'projects':projects})
 
 def get_user_project_file(request,project):
     # get files from the project
@@ -428,8 +427,8 @@ def get(request):
         else:
             content = request.POST["content"]
         status, return_str = get_from_name(request,name,content)
+        message["content"]= return_str
         if status:
-            message["content"]= return_str
             message["success"]= "yes"
         else:
             message["success"]= "no"

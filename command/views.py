@@ -239,8 +239,8 @@ def file_create_a_hello():
     with open(USER_FILE_ROOT + 'hello.world', 'w') as f:
         myfile = File(f)
         myfile.write('Hello World')
-    
     f.closed
+
 def file_check_exist(name):
     return os.path.isfile(name)
 
@@ -251,6 +251,13 @@ def file_create_file(name, content):
     fp = open(name,"w")
     fp.write(content)
     fp.close()
+def file_delete_file(direc,name):
+    os.chdir(direc)
+    os.remove(name)
+
+def file_delete_directory(direc):
+    os.rmdir(direct)
+
 def file_valid(name):
     if name[0] == '.':
         return False
@@ -283,6 +290,7 @@ def file_write_file(str):
 
 def file_copy_file(name,dest_dir):
     pass
+
 def file_file_type(directory,filename):
     # judge a file type by is postfix name
     fp = open(directory + '/' + filename, "r")

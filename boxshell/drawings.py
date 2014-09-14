@@ -19,3 +19,16 @@ def sch(request, project, filename):
                         'file':filename
                         })
     
+@need_login
+def lib(request):
+    info = check_language(request)
+    title = "元件库" if info['language']=="zh-CN" else 'Symbol Library'
+
+    myuser = request.user
+    user_account = return_user_account(myuser)
+
+    return return_page(request,'drawings/bs_lib.html',
+                       title,
+                       {'language':info['language'],
+                        'user':myuser
+                        })

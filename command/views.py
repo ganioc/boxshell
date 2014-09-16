@@ -246,6 +246,8 @@ def file_check_exist(name):
 
 def file_create_dir(name):
     os.mkdir(name)
+def file_check_dir_exist(name):
+    return os.path.exists(name)
 
 def file_create_file(name, content):
     fp = open(name,"w")
@@ -315,6 +317,8 @@ def get_user_account(user1):
             user=user1
         )
         account.save()
+    #if there is no user directory , create it
+    if not file_check_dir_exist(USER_FILE_ROOT + account.home_dir):
         file_create_dir(USER_FILE_ROOT + account.home_dir)
     return account
 

@@ -32,3 +32,17 @@ def lib(request):
                        {'language':info['language'],
                         'user':myuser
                         })
+
+@need_login
+def newlib(request):
+    info = check_language(request)
+    title = "元件库" if info['language']=="zh-CN" else 'Symbol Library'
+
+    myuser = request.user
+    user_account = return_user_account(myuser)
+
+    return return_page(request,'drawings/bs_newlib.html',
+                       title,
+                       {'language':info['language'],
+                        'user':myuser
+                        })

@@ -46,3 +46,18 @@ def newlib(request):
                        {'language':info['language'],
                         'user':myuser
                         })
+
+@need_login
+def newboard(request):
+    info = check_language(request)
+    title = "画板" if info['language']=="zh-CN" else 'Board'
+
+    myuser = request.user
+    user_account = return_user_account(myuser)
+
+    return return_page(request,'drawings/bs_board.html',
+                       title,
+                       {'language':info['language'],
+                        'user':myuser
+                        })
+

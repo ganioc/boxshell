@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-                        
 from django.shortcuts import redirect, render_to_response 
 from django.contrib.auth.models import User
+from django.template import Context, Template
+from django.template.loader import get_template
 from command.views import need_login, check_language, return_user_account, return_page
 
 @need_login
@@ -55,9 +57,24 @@ def newboard(request):
     myuser = request.user
     user_account = return_user_account(myuser)
 
+    sch_template = get_template("drawings/board_sch_template.html");
+    sch_context = Context({});
+    sch_html = sch_template.render(sch_context)
+
+    pcb_template = get_template("drawings/board_pcb_editor_template.html");
+    pcb_context = Context({});
+    pcb_html = pcb_template.render(pcb_context);
+
+    symbol_template = get_template("drawings/board_symbol_lib_template.html");
+    symbol_context = Context({});
+    symbol_html = symbol_template.render(symbol_context);
+
     return return_page(request,'drawings/bs_board.html',
                        title,
                        {'language':info['language'],
-                        'user':myuser
+                        'user':myuser,
+                        'section3':symbol_html,
+                        'section4':sch_html,
+                        'section5':pcb_html
                         })
 

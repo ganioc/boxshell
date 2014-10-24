@@ -56,17 +56,20 @@ def newboard(request):
 
     myuser = request.user
     user_account = return_user_account(myuser)
+    mycontext = {'user':myuser,
+                 'language':info['language']
+             }
 
     sch_template = get_template("drawings/board_sch_template.html");
-    sch_context = Context({});
+    sch_context = Context(mycontext);
     sch_html = sch_template.render(sch_context)
 
     pcb_template = get_template("drawings/board_pcb_editor_template.html");
-    pcb_context = Context({});
+    pcb_context = Context(mycontext);
     pcb_html = pcb_template.render(pcb_context);
 
     symbol_template = get_template("drawings/board_symbol_lib_template.html");
-    symbol_context = Context({});
+    symbol_context = Context(mycontext);
     symbol_html = symbol_template.render(symbol_context);
 
     return return_page(request,'drawings/bs_board.html',
